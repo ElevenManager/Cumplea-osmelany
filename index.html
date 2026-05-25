@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evaluación Psicológica Especial</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            pastelRosa: '#FFD1DC',
+            pastelRosaOscuro: '#FFAEC1',
+            pastelAzul: '#D4F0FC',
+            pastelMenta: '#E8F8F5',
+            pastelMorado: '#E8DAEF'
+          },
+          boxShadow: {
+            pastel: '7px 7px 0 #D4F0FC',
+            soft: '0 18px 60px rgba(255, 174, 193, 0.22)'
+          },
+          keyframes: {
+            pop: {
+              '0%': { transform: 'scale(.96)', opacity: '.4' },
+              '100%': { transform: 'scale(1)', opacity: '1' }
+            },
+            wiggleSoft: {
+              '0%, 100%': { transform: 'rotate(-3deg) scale(1)' },
+              '50%': { transform: 'rotate(3deg) scale(1.08)' }
+            },
+            floaty: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-8px)' }
+            }
+          },
+          animation: {
+            pop: 'pop .28s ease-out both',
+            wiggleSoft: 'wiggleSoft .58s ease-in-out infinite',
+            floaty: 'floaty 3s ease-in-out infinite'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #fffafa;
+      --ink: #40404a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(255, 209, 220, .62), transparent 28%),
+        radial-gradient(circle at 82% 18%, rgba(212, 240, 252, .72), transparent 30%),
+        linear-gradient(135deg, #fff7f9 0%, #f2fffb 48%, #f9f3ff 100%);
+      color: var(--ink);
+      font-family: "Courier New", Courier, monospace;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    .pastel-card {
+      background: rgba(255, 255, 255, .92);
+      border: 4px solid #FFD1DC;
+      border-radius: 18px;
+      box-shadow: 7px 7px 0 #D4F0FC, 0 18px 60px rgba(255, 174, 193, .18);
+    }
+
+    .screen {
+      animation: pop .28s ease-out both;
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .hide-scrollbar::-webkit-scrollbar-thumb {
+      background: #E8DAEF;
+      border-radius: 999px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+<body class="flex min-h-screen items-center justify-center p-4">
+  <main class="w-full max-w-[620px]">
+    <section id="game-container" class="pastel-card min-h-[470px] w-full p-5 text-center sm:p-7">
+      <div class="screen flex min-h-[390px] flex-col items-center justify-center gap-4">
+        <div class="h-14 w-14 animate-floaty rounded-full bg-pastelRosa text-3xl leading-[3.5rem]">🧠</div>
+        <p class="text-sm font-bold text-gray-600">Iniciando sistema de diagnóstico...</p>
+      </div>
+    </section>
+    <p class="mt-4 text-center text-[11px] font-bold text-gray-500">
+      GitHub Pages + localStorage + mucho amor clínicamente no reembolsable.
+    </p>
+  </main>
+
+  <div id="modal-root" class="pointer-events-none fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/30 p-4 opacity-0 transition-opacity"></div>
+
+  <script>
+    'use strict';
+
+    // ================= CONFIGURACION EDITABLE =================
+    const TU_TELEFONO_WHATSAPP = '51924395689';
+    const PALABRAS_NOMBRE_PERMITIDAS = ['melany', 'rosario', 'candia', 'rojas'];
+    const STORAGE_PERFIL = 'cumple_melany_perfil_v3';
+    const STORAGE_CUPONES_USADOS = 'cumple_melany_cupones_usados_v3';
+
+    // Datos locales: todo funciona en GitHub Pages sin backend ni base de datos externa.
+    const PREGUNTAS_RESPALDO = [
+      { id: 1, pregunta: "Ante un novio informático con síntomas agudos de 'Te extraño', la psicóloga debe:", a: 'Ignorarlo', b: 'Recetarle un mensaje de voz larguísimo', c: 'Darle terapia de abrazos al volver', correcta: 'c' },
+      { id: 2, pregunta: 'Según el DSM-5, cumplir años temporalmente lejos de tu novio se clasifica como:', a: 'Trastorno de distancia', b: 'Injusticia cósmica severa', c: 'Un día cualquiera', correcta: 'b' },
+      { id: 3, pregunta: '¿Cuál es el estímulo condicionado que más te hace sonreír en el día?', a: 'Ver memes de Freud', b: 'Un mensaje de buenos días de tu informático', c: 'Que se cancele una sesión pesada', correcta: 'b' },
+      { id: 4, pregunta: "Si tu novio te dice 'Eres el index.html de mi vida', significa que:", a: 'Te está hablando en binario', b: 'Eres su página principal y prioridad', c: 'Se le olvidó cómo hablar español', correcta: 'b' },
+      { id: 5, pregunta: '¿Qué área del cerebro se activa cuando piensas en nuestro próximo reencuentro en Cusco?', a: 'El lóbulo de la felicidad extrema', b: 'El hipocampo de los recuerdos viejos', c: 'El cerebelo del aburrimiento', correcta: 'a' },
+      { id: 6, pregunta: 'Un diagnóstico clínico profundo de nuestra relación revelaría:', a: 'Dependencia severa al café', b: 'Compatibilidad algorítmica perfecta y amor crónico', c: 'Falta de comunicación asertiva', correcta: 'b' },
+      { id: 7, pregunta: 'El mecanismo de defensa ideal contra los días estresantes en consulta es:', a: 'Sublimación a través del chocolate', b: 'Llamar a tu novio para hablar una hora completa', c: 'Ambas opciones son vitales para la salud mental', correcta: 'c' },
+      { id: 8, pregunta: 'Si la psicología estudia la mente, ¿qué ciencia explica lo nuestro?', a: 'La química cuántica', b: 'La neurobiología del amor a la distancia', c: 'La física del abrazo perfecto', correcta: 'b' }
+    ];
+
+    const CUPONES_RESPALDO = [
+      { id: 1, titulo: '🍦 Delivery de Postre Sorpresa', descripcion: 'Válido hoy. Tu novio te pide algo rico a donde estás hospedada.', usado: false },
+      { id: 2, titulo: '💆 Masaje Anti-Estrés Post-Viaje', descripcion: 'Cero charlas clínicas. Solo relax total cuando vuelvas a Cusco.', usado: false },
+      { id: 3, titulo: '🎬 Control Remoto de Citas', descripcion: 'Tú eliges la película, la comida y el horario de la próxima salida.', usado: false },
+      { id: 4, titulo: '☕ Pase Libre de Café Infinito', descripcion: 'Canjeable por una tarde entera de café y postres pagados por mí.', usado: false },
+      { id: 5, titulo: '🛑 Pausa en Discusiones', descripcion: 'Úsalo para pausar un drama o ganar una negociación doméstica.', usado: false },
+      { id: 6, titulo: '🎧 Oído Atento sin Consejos', descripcion: '30 minutos de mí escuchándote sin interrumpir tu descarga emocional.', usado: false },
+      { id: 7, titulo: '🍟 Cupón Anti-Dieta', descripcion: 'Válido por un delivery nocturno sin juicio clínico ni nutricional.', usado: false },
+      { id: 8, titulo: '🗺️ Escapada de Fin de Semana', descripcion: 'Un viaje corto planificado por tu informático con logística incluida.', usado: false },
+      { id: 9, titulo: '👨‍🍳 Chef Ejecutivo por un Día', descripcion: 'Yo cocino tu plato favorito y lavo absolutamente todos los platos.', usado: false },
+      { id: 10, titulo: '🧸 Abrazo Ultra-Prolongado', descripcion: 'Cinco minutos continuos de abrazo para recargar oxitocina.', usado: false }
+    ];
+
+    const state = {
+      paso: 'loading',
+      nombre: '',
+      preguntaActual: 0,
+      clicsAmor: 0,
+      respuestasTest: [],
+      preguntas: [],
+      cupones: [],
+      ocupado: false
+    };
+
+    const container = document.getElementById('game-container');
+    const modalRoot = document.getElementById('modal-root');
+
+    const screen = {
+      login: 'login',
+      test: 'test',
+      impulse: 'impulse',
+      clicker: 'clicker',
+      diagnosis: 'diagnosis',
+      menu: 'menu',
+      result: 'result',
+      coupons: 'coupons'
+    };
+
+    document.addEventListener('DOMContentLoaded', iniciarApp);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && state.paso === screen.login) validarLogin();
+    });
+
+    function iniciarApp() {
+      cargarDatosLocales();
+      state.paso = screen.login;
+      render();
+    }
+
+    function cargarDatosLocales() {
+      state.preguntas = [...PREGUNTAS_RESPALDO];
+      state.cupones = [...CUPONES_RESPALDO];
+      aplicarCuponesLocales();
+    }
+
+    function aplicarCuponesLocales() {
+      const usados = leerCuponesLocales();
+      state.cupones = state.cupones.map((cupon) => ({
+        ...cupon,
+        usado: cupon.usado || usados.includes(String(cupon.id))
+      }));
+    }
+
+    function render() {
+      const map = {
+        [screen.login]: renderLogin,
+        [screen.test]: renderTest,
+        [screen.impulse]: renderImpulso,
+        [screen.clicker]: renderClicker,
+        [screen.diagnosis]: renderDiagnostico,
+        [screen.menu]: renderMenu,
+        [screen.result]: renderResultadoTest,
+        [screen.coupons]: renderCupones
+      };
+
+      const html = map[state.paso]?.() ?? renderLogin();
+      container.innerHTML = `<div class="screen">${html}</div>`;
+
+      if (state.paso === screen.impulse) setTimeout(moverBotonHuidizo, 80);
+    }
+
+    function renderLogin() {
+      return `
+        <div class="mx-auto flex max-w-[500px] flex-col items-center">
+          <div class="mb-4 rounded-xl bg-pastelAzul px-4 py-3 text-xs font-bold text-blue-800 sm:text-sm">
+            SISTEMA DE EVALUACIÓN DIAGNÓSTICA v20.26
+          </div>
+          <div class="mb-5 text-5xl animate-floaty">🧠💖</div>
+          <h1 class="mb-3 text-2xl font-black leading-tight text-gray-800 sm:text-3xl">Portal Clínico de Cumpleaños</h1>
+          <p class="mb-6 text-sm leading-relaxed text-gray-600">
+            Sistema de Evaluación Diagnóstica v20.26. Ingrese su nombre para iniciar la prueba de madurez emocional.
+          </p>
+          <label class="mb-2 w-full text-left text-xs font-bold uppercase text-gray-500" for="nombre-input">Nombre de la paciente especial</label>
+          <input id="nombre-input" class="mb-4 w-full rounded-xl border-2 border-pastelRosa bg-white px-4 py-3 text-center text-sm font-bold text-gray-700 outline-none transition focus:border-pastelRosaOscuro focus:ring-4 focus:ring-pink-100" type="text" placeholder="Tu nombre hermoso..." autocomplete="name" />
+          <button class="w-full rounded-xl bg-pastelRosa px-5 py-3 text-sm font-black text-gray-800 shadow-soft transition hover:-translate-y-0.5 hover:bg-pastelRosaOscuro active:translate-y-0" type="button" onclick="validarLogin()">
+            Iniciar Diagnóstico
+          </button>
+          <p class="mt-4 text-[11px] font-bold text-teal-600">
+            Datos guardados localmente en este navegador.
+          </p>
+        </div>
+      `;
+    }
+
+    function validarLogin() {
+      const input = document.getElementById('nombre-input');
+      const nombre = input?.value.trim();
+      if (!nombre) {
+        mostrarModal('Acceso denegado', '🚨 Error: Una psicóloga tan bella no puede andar anónima.');
+        return;
+      }
+
+      if (!nombreAutorizado(nombre)) {
+        mostrarModal('Paciente no registrada', '🚨 Este portal clínico solo reconoce a Melany. Si eres impostor emocional, vuelve lentamente por donde viniste.');
+        input.value = '';
+        input.focus();
+        return;
+      }
+
+      state.nombre = normalizarNombreBonito(nombre);
+
+      const perfil = leerPerfil();
+      if (perfil?.completado && perfil.nombreKey === normalizarTexto(nombre)) {
+        state.respuestasTest = Array.isArray(perfil.respuestasTest) ? perfil.respuestasTest : [];
+        state.clicsAmor = 15;
+        state.paso = screen.menu;
+        render();
+        return;
+      }
+
+      state.preguntaActual = 0;
+      state.clicsAmor = 0;
+      state.respuestasTest = [];
+      state.paso = screen.test;
+      render();
+    }
+
+    function nombreAutorizado(nombre) {
+      const partes = normalizarTexto(nombre).split(' ').filter(Boolean);
+      if (!partes.includes('melany')) return false;
+      return partes.every((parte) => PALABRAS_NOMBRE_PERMITIDAS.includes(parte));
+    }
+
+    function normalizarTexto(texto) {
+      return String(texto ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-zñ\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function normalizarNombreBonito(nombre) {
+      return normalizarTexto(nombre)
+        .split(' ')
+        .map((parte) => parte.charAt(0).toUpperCase() + parte.slice(1))
+        .join(' ');
+    }
+
+    function renderTest() {
+      const pregunta = state.preguntas[state.preguntaActual];
+      const progreso = Math.round((state.preguntaActual / state.preguntas.length) * 100);
+
+      return `
+        <div>
+          <div class="mb-5">
+            <div class="mb-2 flex items-center justify-between text-[11px] font-bold uppercase text-gray-500">
+              <span>Evaluación psicológica de cumpleaños</span>
+              <span>${state.preguntaActual + 1}/${state.preguntas.length}</span>
+            </div>
+            <div class="h-3 overflow-hidden rounded-full bg-gray-200">
+              <div class="h-full rounded-full bg-pastelRosaOscuro transition-all duration-500" style="width:${progreso}%"></div>
+            </div>
+          </div>
+          <h2 class="mb-6 text-left text-lg font-black leading-snug text-gray-800 sm:text-xl">
+            ${escapeHtml(pregunta.pregunta)}
+          </h2>
+          <div class="grid gap-3">
+            ${renderOpcion('a', pregunta.a, 'bg-pastelAzul')}
+            ${renderOpcion('b', pregunta.b, 'bg-pastelRosa')}
+            ${renderOpcion('c', pregunta.c, 'bg-pastelMenta')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderOpcion(letra, texto, colorClass) {
+      return `
+        <button class="rounded-xl ${colorClass} px-4 py-4 text-left text-sm font-bold text-gray-700 transition hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0" type="button" onclick="verificarRespuesta('${letra}')">
+          <span class="mr-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/70 text-xs font-black">${letra.toUpperCase()}</span>
+          ${escapeHtml(texto)}
+        </button>
+      `;
+    }
+
+    async function verificarRespuesta(opcion) {
+      const pregunta = state.preguntas[state.preguntaActual];
+      const correcta = opcion === pregunta.correcta;
+      const respuesta = {
+        nombre: state.nombre,
+        preguntaId: pregunta.id,
+        pregunta: pregunta.pregunta,
+        respuesta: opcion,
+        correcta,
+        fecha: new Date().toISOString()
+      };
+
+      state.respuestasTest.push(respuesta);
+
+      if (!correcta) {
+        mostrarModal('Respuesta clínicamente sospechosa', 'Error: Mecanismo de defensa de negación detectado. Intenta otra opción.');
+        return;
+      }
+
+      state.preguntaActual += 1;
+
+      if (state.preguntaActual >= state.preguntas.length) {
+        state.paso = screen.impulse;
+      }
+
+      render();
+    }
+
+    function renderImpulso() {
+      return `
+        <div>
+          <h2 class="mb-2 text-xl font-black text-gray-800">Minijuego 1: Control de Impulsos</h2>
+          <p class="mb-5 text-sm leading-relaxed text-gray-600">
+            Un botón rojo intentará activar una conducta evitativa. La meta clínica es no perseguirlo demasiado.
+          </p>
+          <div id="area-escape" class="relative mb-5 h-52 overflow-hidden rounded-2xl border-2 border-dashed border-pink-200 bg-white">
+            <button id="btn-huidizo" class="absolute rounded-xl bg-red-300 px-4 py-3 text-xs font-black text-red-950 shadow-md transition-all duration-200" type="button" onmouseover="moverBotonHuidizo()" ontouchstart="moverBotonHuidizo()">
+              Terminar Relación 💔
+            </button>
+          </div>
+          <button class="rounded-lg bg-pastelMenta px-3 py-2 text-[11px] font-black text-gray-700 transition hover:bg-teal-100" type="button" onclick="cambiarPaso('clicker')">
+            Saltar este impulso destructivo ➔
+          </button>
+        </div>
+      `;
+    }
+
+    function moverBotonHuidizo() {
+      const btn = document.getElementById('btn-huidizo');
+      const area = document.getElementById('area-escape');
+      if (!btn || !area) return;
+
+      const maxX = Math.max(0, area.clientWidth - btn.clientWidth - 8);
+      const maxY = Math.max(0, area.clientHeight - btn.clientHeight - 8);
+      btn.style.left = `${Math.floor(Math.random() * maxX) + 4}px`;
+      btn.style.top = `${Math.floor(Math.random() * maxY) + 4}px`;
+    }
+
+    function renderClicker() {
+      const progreso = Math.min(100, Math.round((state.clicsAmor / 15) * 100));
+
+      return `
+        <div class="mx-auto max-w-[500px]">
+          <h2 class="mb-2 text-xl font-black text-gray-800">Minijuego 2: Caja de Skinner del Amor</h2>
+          <p class="mb-6 text-sm leading-relaxed text-gray-600">
+            Presiona el corazón 15 veces para subir el nivel de oxitocina y completar el protocolo de refuerzo positivo.
+          </p>
+          <button class="my-3 select-none text-7xl transition active:scale-90 sm:text-8xl ${state.clicsAmor ? 'animate-wiggleSoft' : 'animate-floaty'}" type="button" aria-label="Sumar amor" onclick="sumarAmor()">
+            💖
+          </button>
+          <div class="mb-2 text-sm font-black text-gray-700">Nivel de Oxitocina: <span class="text-pink-500">${state.clicsAmor}/15</span></div>
+          <div class="h-4 overflow-hidden rounded-full bg-gray-200">
+            <div class="h-full rounded-full bg-pink-400 transition-all duration-200" style="width:${progreso}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function sumarAmor() {
+      state.clicsAmor = Math.min(15, state.clicsAmor + 1);
+
+      if (state.clicsAmor >= 15) {
+        lanzarConfeti();
+        state.paso = screen.diagnosis;
+        guardarPerfilCompletado();
+        setTimeout(render, 650);
+        return;
+      }
+
+      render();
+    }
+
+    function lanzarConfeti() {
+      if (typeof confetti !== 'function') return;
+
+      confetti({ particleCount: 170, spread: 90, origin: { y: 0.62 } });
+      setTimeout(() => confetti({ particleCount: 120, angle: 60, spread: 70, origin: { x: 0 } }), 170);
+      setTimeout(() => confetti({ particleCount: 120, angle: 120, spread: 70, origin: { x: 1 } }), 270);
+    }
+
+    function renderDiagnostico() {
+      return `
+        <div class="mx-auto max-w-[520px]">
+          <div class="mb-4 rounded-xl bg-pastelMenta px-4 py-3 text-xs font-black uppercase text-teal-800">Informe diagnóstico emitido</div>
+          <h2 class="mb-4 text-2xl font-black leading-tight text-gray-800">Diagnóstico: Amor Crónico Irreversible</h2>
+          <div class="mb-5 rounded-2xl border border-pink-100 bg-white p-4 text-left text-sm leading-relaxed text-gray-650 shadow-sm">
+            <p class="mb-3"><strong>Paciente:</strong> ${escapeHtml(state.nombre)}, psicóloga extraordinaria y cumpleañera oficialmente evaluada.</p>
+            <p class="mb-3"><strong>Síntomas:</strong> exceso de carisma, sonrisa que altera el código del programador y alta probabilidad de extrañar a su novio en Cusco.</p>
+            <p><strong>Tratamiento:</strong> ser consentida a distancia, recibir mensajes bonitos y canjear cupones de cumpleaños con efecto inmediato.</p>
+          </div>
+          <p class="mb-6 text-xs italic leading-relaxed text-gray-500">
+            Te amo con todo mi código, mis bugs corregidos y mis variables más importantes.
+          </p>
+          <button class="w-full rounded-2xl bg-pastelAzul px-5 py-4 text-sm font-black text-gray-800 shadow-soft transition hover:-translate-y-0.5 hover:brightness-105" type="button" onclick="cambiarPaso('coupons')">
+            🎁 Desbloquear mis Cupones de Cumpleaños
+          </button>
+        </div>
+      `;
+    }
+
+    function renderMenu() {
+      return `
+        <div class="mx-auto max-w-[500px]">
+          <div class="mb-4 rounded-xl bg-pastelAzul px-4 py-3 text-xs font-black uppercase text-blue-800">Paciente registrada</div>
+          <h2 class="mb-2 text-2xl font-black leading-tight text-gray-800">Hola otra vez, ${escapeHtml(state.nombre)}</h2>
+          <p class="mb-6 text-sm leading-relaxed text-gray-600">
+            Tu evaluación ya fue completada. El sistema clínico-geek guardó el resultado y ahora solo muestra las opciones útiles.
+          </p>
+          <div class="grid gap-3">
+            <button class="rounded-2xl bg-pastelMenta px-5 py-4 text-sm font-black text-gray-800 transition hover:-translate-y-0.5" type="button" onclick="cambiarPaso('result')">
+              Ver resultado de test
+            </button>
+            <button class="rounded-2xl bg-pastelRosa px-5 py-4 text-sm font-black text-gray-800 transition hover:-translate-y-0.5" type="button" onclick="reiniciarJuego2()">
+              Reintentar juego 2
+            </button>
+            <button class="rounded-2xl bg-pastelMorado px-5 py-4 text-sm font-black text-gray-800 transition hover:-translate-y-0.5" type="button" onclick="cambiarPaso('coupons')">
+              Ver cupones
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderResultadoTest() {
+      const correctas = state.respuestasTest.filter((respuesta) => respuesta.correcta).length;
+      const intentos = state.respuestasTest.length;
+      const ultimasCorrectas = state.respuestasTest.filter((respuesta) => respuesta.correcta);
+
+      return `
+        <div class="mx-auto max-w-[520px] text-left">
+          <button class="mb-4 rounded-xl bg-pastelAzul px-3 py-2 text-[11px] font-black text-gray-700" type="button" onclick="cambiarPaso('menu')">
+            Volver al menú
+          </button>
+          <h2 class="mb-2 text-2xl font-black text-gray-800">Resultado del Test</h2>
+          <p class="mb-4 text-sm leading-relaxed text-gray-600">
+            Diagnóstico: Amor Crónico Irreversible. Puntaje final: <strong>${correctas}/${state.preguntas.length}</strong> respuestas correctas, con ${intentos} intento${intentos === 1 ? '' : 's'} registrado${intentos === 1 ? '' : 's'}.
+          </p>
+          <div class="hide-scrollbar grid max-h-[340px] gap-3 overflow-y-auto pr-1">
+            ${ultimasCorrectas.map((respuesta, index) => `
+              <div class="rounded-2xl border border-pink-100 bg-white p-3">
+                <p class="mb-1 text-xs font-black text-gray-500">Pregunta ${index + 1}</p>
+                <p class="text-xs leading-relaxed text-gray-700">${escapeHtml(respuesta.pregunta)}</p>
+                <p class="mt-2 text-[11px] font-black text-teal-600">Respuesta validada: ${escapeHtml(String(respuesta.respuesta).toUpperCase())}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCupones() {
+      const cards = state.cupones.map((cupon) => {
+        const disponible = !cupon.usado;
+        return `
+          <article class="rounded-2xl border-2 p-4 text-left transition ${disponible ? 'border-purple-200 bg-pastelMorado' : 'border-gray-300 bg-gray-100 opacity-60'}">
+            <div class="mb-2 flex items-start justify-between gap-3">
+              <h3 class="text-sm font-black leading-snug text-gray-800">${escapeHtml(cupon.titulo)}</h3>
+              <span class="shrink-0 rounded-full px-2 py-1 text-[10px] font-black ${disponible ? 'bg-purple-500 text-white' : 'bg-gray-400 text-white'}">
+                ${disponible ? 'Disponible' : 'Canjeado ✓'}
+              </span>
+            </div>
+            <p class="mb-3 text-xs leading-relaxed text-gray-600">${escapeHtml(cupon.descripcion)}</p>
+            ${
+              disponible
+                ? `<button id="btn-cupon-${escapeAttr(cupon.id)}" class="w-full rounded-xl bg-white/80 px-4 py-2 text-xs font-black text-purple-900 transition hover:bg-white" type="button" onclick="canjearCupon('${escapeAttr(cupon.id)}')">Canjear</button>`
+                : `<div class="rounded-xl bg-white/60 px-4 py-2 text-center text-xs font-black text-gray-500">Cupón canjeado. Tratamiento en proceso.</div>`
+            }
+          </article>
+        `;
+      }).join('');
+
+      return `
+        <div>
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <div class="text-left">
+              <h2 class="text-xl font-black text-gray-800">Tus Cupones de Cumpleaños</h2>
+              <p class="mt-1 text-[11px] font-bold text-teal-600">
+                Estado guardado en este dispositivo.
+              </p>
+            </div>
+            <button class="rounded-xl bg-pastelMenta px-3 py-2 text-[11px] font-black text-gray-700" type="button" onclick="refrescarCupones()">
+              Actualizar
+            </button>
+          </div>
+          <div class="hide-scrollbar grid max-h-[390px] gap-3 overflow-y-auto pr-1">
+            ${cards}
+          </div>
+        </div>
+      `;
+    }
+
+    function cambiarPaso(next) {
+      state.paso = screen[next] ?? next;
+      render();
+    }
+
+    function reiniciarJuego2() {
+      state.clicsAmor = 0;
+      state.paso = screen.clicker;
+      render();
+    }
+
+    function refrescarCupones() {
+      cargarDatosLocales();
+      state.paso = screen.coupons;
+      render();
+    }
+
+    async function canjearCupon(id) {
+      if (state.ocupado) return;
+      const cupon = state.cupones.find((item) => String(item.id) === String(id));
+      if (!cupon || cupon.usado) return;
+
+      state.ocupado = true;
+      const btn = document.getElementById(`btn-cupon-${id}`);
+      if (btn) btn.textContent = 'Actualizando...';
+      if (btn) btn.disabled = true;
+
+      cupon.usado = true;
+      guardarCuponLocal(cupon.id);
+      render();
+
+      state.ocupado = false;
+      abrirWhatsApp(cupon);
+      render();
+    }
+
+    function abrirWhatsApp(cupon) {
+      const mensaje = encodeURIComponent(`Hola mi amor 💖 Acabo de canjear mi cupón de cumpleaños: ${cupon.titulo}. Detalle: ${cupon.descripcion}`);
+      const url = `https://wa.me/${TU_TELEFONO_WHATSAPP}?text=${mensaje}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    function leerPerfil() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_PERFIL) || 'null');
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function guardarPerfilCompletado() {
+      const perfil = {
+        nombre: state.nombre,
+        nombreKey: normalizarTexto(state.nombre),
+        completado: true,
+        completadoEn: new Date().toISOString(),
+        respuestasTest: state.respuestasTest
+      };
+      localStorage.setItem(STORAGE_PERFIL, JSON.stringify(perfil));
+    }
+
+    function leerCuponesLocales() {
+      try {
+        const value = JSON.parse(localStorage.getItem(STORAGE_CUPONES_USADOS) || '[]');
+        return Array.isArray(value) ? value.map(String) : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function guardarCuponLocal(id) {
+      const usados = new Set(leerCuponesLocales());
+      usados.add(String(id));
+      localStorage.setItem(STORAGE_CUPONES_USADOS, JSON.stringify([...usados]));
+    }
+
+    function mostrarModal(titulo, mensaje) {
+      modalRoot.innerHTML = `
+        <div class="w-full max-w-sm rounded-2xl border-4 border-pastelRosa bg-white p-5 text-center shadow-pastel">
+          <h3 class="mb-2 text-lg font-black text-gray-800">${escapeHtml(titulo)}</h3>
+          <p class="mb-5 text-sm leading-relaxed text-gray-600">${escapeHtml(mensaje)}</p>
+          <button class="rounded-xl bg-pastelRosa px-5 py-2 text-sm font-black text-gray-800" type="button" onclick="cerrarModal()">Entendido</button>
+        </div>
+      `;
+      modalRoot.classList.remove('hidden', 'pointer-events-none', 'opacity-0');
+      modalRoot.classList.add('flex', 'opacity-100');
+    }
+
+    function cerrarModal() {
+      modalRoot.classList.add('hidden', 'pointer-events-none', 'opacity-0');
+      modalRoot.classList.remove('flex', 'opacity-100');
+      modalRoot.innerHTML = '';
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replaceAll('`', '&#096;');
+    }
+  </script>
+</body>
+</html>
