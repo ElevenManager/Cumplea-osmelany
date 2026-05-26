@@ -153,6 +153,7 @@
       nombre: '',
       preguntaActual: 0,
       clicsAmor: 0,
+      intentosImpulso: 0,
       respuestasTest: [],
       preguntas: [],
       cupones: [],
@@ -364,13 +365,21 @@
         <div>
           <h2 class="mb-2 text-xl font-black text-gray-800">Minijuego 1: Control de Impulsos</h2>
           <p class="mb-5 text-sm leading-relaxed text-gray-600">
-            Un botón rojo intentará activar una conducta evitativa. La meta clínica es no perseguirlo demasiado.
+            Toca o persigue el botón rojo. En móvil también escapará del dedo, porque esta relación no acepta autodestrucción táctil.
           </p>
-          <div id="area-escape" class="relative mb-5 h-52 overflow-hidden rounded-2xl border-2 border-dashed border-pink-200 bg-white">
-            <button id="btn-huidizo" class="absolute rounded-xl bg-red-300 px-4 py-3 text-xs font-black text-red-950 shadow-md transition-all duration-200" type="button" onmouseover="moverBotonHuidizo()" ontouchstart="moverBotonHuidizo()">
+          <div id="area-escape" class="relative mb-3 h-56 touch-none overflow-hidden rounded-2xl border-2 border-dashed border-pink-200 bg-white"
+               onpointermove="vigilarDedoImpulsivo(event)">
+            <button id="btn-huidizo" class="absolute rounded-xl bg-red-300 px-4 py-3 text-xs font-black text-red-950 shadow-md transition-all duration-150" type="button"
+                    onpointerenter="moverBotonHuidizo()"
+                    onpointerdown="bloquearImpulso(event)"
+                    ontouchstart="bloquearImpulso(event)"
+                    onclick="bloquearImpulso(event)">
               Terminar Relación 💔
             </button>
           </div>
+          <p class="mb-5 text-[11px] font-bold text-gray-500">
+            Impulsos destructivos evitados: <span id="contador-impulsos">${state.intentosImpulso}</span>/3
+          </p>
           <button class="rounded-lg bg-pastelMenta px-3 py-2 text-[11px] font-black text-gray-700 transition hover:bg-teal-100" type="button" onclick="cambiarPaso('clicker')">
             Saltar este impulso destructivo ➔
           </button>
@@ -387,6 +396,34 @@
       const maxY = Math.max(0, area.clientHeight - btn.clientHeight - 8);
       btn.style.left = `${Math.floor(Math.random() * maxX) + 4}px`;
       btn.style.top = `${Math.floor(Math.random() * maxY) + 4}px`;
+    }
+
+    function vigilarDedoImpulsivo(event) {
+      const btn = document.getElementById('btn-huidizo');
+      if (!btn) return;
+
+      const rect = btn.getBoundingClientRect();
+      const cercaX = event.clientX >= rect.left - 26 && event.clientX <= rect.right + 26;
+      const cercaY = event.clientY >= rect.top - 26 && event.clientY <= rect.bottom + 26;
+
+      if (cercaX && cercaY) moverBotonHuidizo();
+    }
+
+    function bloquearImpulso(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
+      state.intentosImpulso = Math.min(3, state.intentosImpulso + 1);
+      moverBotonHuidizo();
+
+      const contador = document.getElementById('contador-impulsos');
+      if (contador) contador.textContent = state.intentosImpulso;
+
+      if (state.intentosImpulso >= 3) {
+        mostrarModal('Impulso bloqueado', 'Diagnóstico actualizado: la conducta evitativa no prosperó. Puedes saltar este impulso destructivo y continuar con el amor.');
+      }
     }
 
     function renderClicker() {
