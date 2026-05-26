@@ -153,7 +153,7 @@
       nombre: '',
       preguntaActual: 0,
       clicsAmor: 0,
-      intentosImpulso: 0,
+      ingredientesElegidos: [],
       respuestasTest: [],
       preguntas: [],
       cupones: [],
@@ -214,7 +214,6 @@
       const html = map[state.paso]?.() ?? renderLogin();
       container.innerHTML = `<div class="screen">${html}</div>`;
 
-      if (state.paso === screen.impulse) setTimeout(moverBotonHuidizo, 80);
     }
 
     function renderLogin() {
@@ -361,69 +360,70 @@
     }
 
     function renderImpulso() {
+      const ingredientes = [
+        { id: 'pastel', texto: 'Pastel', icono: '🎂', correcto: true },
+        { id: 'postre', texto: 'Postre', icono: '🍰', correcto: true },
+        { id: 'flores', texto: 'Flores', icono: '🌷', correcto: true },
+        { id: 'audios', texto: 'Audios bonitos', icono: '🎧', correcto: true },
+        { id: 'estres', texto: 'Estrés', icono: '📋', correcto: false },
+        { id: 'trabajo', texto: 'Trabajo extra', icono: '💻', correcto: false },
+        { id: 'informes', texto: 'Informes clínicos', icono: '🗂️', correcto: false },
+        { id: 'pendientes', texto: 'Dormir tarde por pendientes', icono: '🌙', correcto: false }
+      ];
+      const puntaje = state.ingredientesElegidos.length;
+
       return `
         <div>
-          <h2 class="mb-2 text-xl font-black text-gray-800">Minijuego 1: Control de Impulsos</h2>
+          <h2 class="mb-2 text-xl font-black text-gray-800">Minijuego 1: Tratamiento de Cumpleaños</h2>
           <p class="mb-5 text-sm leading-relaxed text-gray-600">
-            Toca o persigue el botón rojo. En móvil también escapará del dedo, porque esta relación no acepta autodestrucción táctil.
+            Selecciona los 4 ingredientes correctos para formular el tratamiento ideal de la cumpleañera.
           </p>
-          <div id="area-escape" class="relative mb-3 h-56 touch-none overflow-hidden rounded-2xl border-2 border-dashed border-pink-200 bg-white"
-               onpointermove="vigilarDedoImpulsivo(event)">
-            <button id="btn-huidizo" class="absolute rounded-xl bg-red-300 px-4 py-3 text-xs font-black text-red-950 shadow-md transition-all duration-150" type="button"
-                    onpointerenter="moverBotonHuidizo()"
-                    onpointerdown="bloquearImpulso(event)"
-                    ontouchstart="bloquearImpulso(event)"
-                    onclick="bloquearImpulso(event)">
-              Terminar Relación 💔
-            </button>
+          <div class="mb-4 flex items-center justify-between rounded-2xl bg-pastelMenta px-4 py-3 text-xs font-black text-gray-700">
+            <span>Tratamiento aprobado</span>
+            <span>${puntaje}/4</span>
           </div>
-          <p class="mb-5 text-[11px] font-bold text-gray-500">
-            Impulsos destructivos evitados: <span id="contador-impulsos">${state.intentosImpulso}</span>/3
-          </p>
-          <button class="rounded-lg bg-pastelMenta px-3 py-2 text-[11px] font-black text-gray-700 transition hover:bg-teal-100" type="button" onclick="cambiarPaso('clicker')">
-            Saltar este impulso destructivo ➔
-          </button>
+          <div class="grid grid-cols-2 gap-3">
+            ${ingredientes.map((item) => renderIngredienteCumple(item)).join('')}
+          </div>
         </div>
       `;
     }
 
-    function moverBotonHuidizo() {
-      const btn = document.getElementById('btn-huidizo');
-      const area = document.getElementById('area-escape');
-      if (!btn || !area) return;
-
-      const maxX = Math.max(0, area.clientWidth - btn.clientWidth - 8);
-      const maxY = Math.max(0, area.clientHeight - btn.clientHeight - 8);
-      btn.style.left = `${Math.floor(Math.random() * maxX) + 4}px`;
-      btn.style.top = `${Math.floor(Math.random() * maxY) + 4}px`;
+    function renderIngredienteCumple(item) {
+      const elegido = state.ingredientesElegidos.includes(item.id);
+      return `
+        <button class="min-h-24 rounded-2xl border-2 px-3 py-4 text-center transition active:scale-95 ${elegido ? 'border-teal-300 bg-pastelMenta opacity-80' : 'border-pink-100 bg-white hover:-translate-y-0.5 hover:bg-pink-50'}"
+                type="button"
+                ${elegido ? 'disabled' : ''}
+                onclick="elegirIngredienteCumple('${item.id}', ${item.correcto})">
+          <span class="mb-2 block text-3xl">${item.icono}</span>
+          <span class="block text-xs font-black leading-tight text-gray-700">${escapeHtml(item.texto)}</span>
+        </button>
+      `;
     }
 
-    function vigilarDedoImpulsivo(event) {
-      const btn = document.getElementById('btn-huidizo');
-      if (!btn) return;
-
-      const rect = btn.getBoundingClientRect();
-      const cercaX = event.clientX >= rect.left - 26 && event.clientX <= rect.right + 26;
-      const cercaY = event.clientY >= rect.top - 26 && event.clientY <= rect.bottom + 26;
-
-      if (cercaX && cercaY) moverBotonHuidizo();
-    }
-
-    function bloquearImpulso(event) {
-      if (event) {
-        event.preventDefault();
-        event.stopPropagation();
+    function elegirIngredienteCumple(id, correcto) {
+      if (!correcto) {
+        mostrarModal('Ingrediente contraindicado', 'Ese síntoma no entra al plan terapéutico de hoy. La cumpleañera merece cero estrés y cero pendientes.');
+        return;
       }
 
-      state.intentosImpulso = Math.min(3, state.intentosImpulso + 1);
-      moverBotonHuidizo();
-
-      const contador = document.getElementById('contador-impulsos');
-      if (contador) contador.textContent = state.intentosImpulso;
-
-      if (state.intentosImpulso >= 3) {
-        mostrarModal('Impulso bloqueado', 'Diagnóstico actualizado: la conducta evitativa no prosperó. Puedes saltar este impulso destructivo y continuar con el amor.');
+      if (!state.ingredientesElegidos.includes(id)) {
+        state.ingredientesElegidos.push(id);
       }
+
+      if (state.ingredientesElegidos.length >= 4) {
+        lanzarConfetiSuave();
+        mostrarModal('Tratamiento aprobado', 'Receta validada: pastel, postre, flores y audios bonitos. Cumpleañera lista para ser consentida.');
+        setTimeout(() => {
+          cerrarModal();
+          state.paso = screen.clicker;
+          render();
+        }, 1300);
+        return;
+      }
+
+      render();
     }
 
     function renderClicker() {
@@ -466,6 +466,12 @@
       confetti({ particleCount: 170, spread: 90, origin: { y: 0.62 } });
       setTimeout(() => confetti({ particleCount: 120, angle: 60, spread: 70, origin: { x: 0 } }), 170);
       setTimeout(() => confetti({ particleCount: 120, angle: 120, spread: 70, origin: { x: 1 } }), 270);
+    }
+
+    function lanzarConfetiSuave() {
+      if (typeof confetti !== 'function') return;
+
+      confetti({ particleCount: 80, spread: 65, origin: { y: 0.72 } });
     }
 
     function renderDiagnostico() {
